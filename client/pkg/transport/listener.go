@@ -50,7 +50,7 @@ var (
 
 // Register new transport scheme, allows the definition of custom listener and dial protocols
 // This is not threadsafe, and is intended to be called before the start of the embedded ETCd server
-func RegisterTransport(scheme, addr string, t TransportType) {
+func RegisterTransport(scheme string, t TransportType) {
 	if scheme == "unix" || scheme == "unixs" || scheme == "http" || scheme == "https" {
 		panic("cannot overwrite default transports")
 	}
