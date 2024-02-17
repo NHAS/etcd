@@ -48,6 +48,8 @@ var (
 	customTransports = map[string]TransportType{}
 )
 
+// Register new transport scheme, allows the definition of custom listener and dial protocols
+// This is not threadsafe, and is intended to be called before the start of the embedded ETCd server
 func RegisterTransport(scheme, addr string, t TransportType) {
 	if scheme == "unix" || scheme == "unixs" || scheme == "http" || scheme == "https" {
 		panic("cannot overwrite default transports")
@@ -60,7 +62,7 @@ func RegisterTransport(scheme, addr string, t TransportType) {
 	customTransports[scheme] = t
 }
 
-// NewListener creates a new listner.
+// NewListener creates a new listener.
 func NewListener(addr, scheme string, tlsinfo *TLSInfo) (l net.Listener, err error) {
 	return newListener(addr, scheme, WithTLSInfo(tlsinfo))
 }
@@ -78,7 +80,7 @@ func newListener(addr, scheme string, opts ...ListenerOption) (net.Listener, err
 
 	lnOpts := newListenOpts(opts...)
 
-	if scheme != "https" && scheme != "http" {
+	if scheme != "https" && scheme != "http" && scheme != "tcp" {
 		tr, ok := customTransports[scheme]
 		if !ok {
 			return nil, errors.New("transport scheme not found")
