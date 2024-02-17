@@ -49,7 +49,7 @@ func NewURLs(strs []string) (URLs, error) {
 		case "unix", "unixs":
 			break
 		default:
-			return nil, fmt.Errorf("URL scheme must be http, https, unix, or unixs: %s", in)
+
 		}
 		all[i] = *u
 	}
