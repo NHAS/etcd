@@ -39,6 +39,27 @@ import (
 	"go.etcd.io/etcd/client/pkg/v3/verify"
 )
 
+type TransportType interface {
+	StartListening(addr string, ops *ListenerOptions) (net.Listener, error)
+	DialContext(ctx context.Context, net, addr string) (net.Conn, error)
+}
+
+var (
+	customTransports = map[string]TransportType{}
+)
+
+func RegisterTransport(scheme, addr string, t TransportType) {
+	if scheme == "unix" || scheme == "unixs" || scheme == "http" || scheme == "https" {
+		panic("cannot overwrite default transports")
+	}
+
+	if _, ok := customTransports[scheme]; ok {
+		panic("tried to register an existing protocol")
+	}
+
+	customTransports[scheme] = t
+}
+
 // NewListener creates a new listner.
 func NewListener(addr, scheme string, tlsinfo *TLSInfo) (l net.Listener, err error) {
 	return newListener(addr, scheme, WithTLSInfo(tlsinfo))
@@ -56,6 +77,15 @@ func newListener(addr, scheme string, opts ...ListenerOption) (net.Listener, err
 	}
 
 	lnOpts := newListenOpts(opts...)
+
+	if scheme != "https" && scheme != "http" {
+		tr, ok := customTransports[scheme]
+		if !ok {
+			return nil, errors.New("transport scheme not found")
+		}
+
+		return tr.StartListening(addr, lnOpts)
+	}
 
 	switch {
 	case lnOpts.IsSocketOpts():

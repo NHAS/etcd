@@ -22,7 +22,10 @@ import (
 	"time"
 )
 
-type unixTransport struct{ *http.Transport }
+type customTransport struct {
+	*http.Transport
+	scheme string
+}
 
 func NewTransport(info TLSInfo, dialtimeoutd time.Duration) (*http.Transport, error) {
 	cfg, err := info.ClientConfig()
@@ -61,17 +64,32 @@ func NewTransport(info TLSInfo, dialtimeoutd time.Duration) (*http.Transport, er
 		// forward it to 'tu' as well.
 		IdleConnTimeout: time.Microsecond,
 	}
-	ut := &unixTransport{tu}
-
+	ut := &customTransport{
+		Transport: tu,
+		scheme:    "unix",
+	}
 	t.RegisterProtocol("unix", ut)
 	t.RegisterProtocol("unixs", ut)
+
+	for scheme, transport := range customTransports {
+
+		tu := &http.Transport{
+			DialContext:         transport.DialContext,
+			TLSHandshakeTimeout: 10 * time.Second,
+			TLSClientConfig:     cfg,
+			IdleConnTimeout:     time.Millisecond * 500,
+		}
+		ct := &customTransport{Transport: tu, scheme: scheme}
+
+		t.RegisterProtocol(scheme, ct)
+	}
 
 	return t, nil
 }
 
-func (urt *unixTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+func (urt *customTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	url := *req.URL
 	req.URL = &url
-	req.URL.Scheme = strings.Replace(req.URL.Scheme, "unix", "http", 1)
+	req.URL.Scheme = strings.Replace(req.URL.Scheme, urt.scheme, "http", 1)
 	return urt.Transport.RoundTrip(req)
 }
